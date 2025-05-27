@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include "anteater.h"
 
 int main(void) {
@@ -12,18 +13,18 @@ int main(void) {
 	char *buf;
 	ssize_t sz;
 
-	*sock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+	*sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	i = 0;
-	while (i < 5) {
-		if ((sz = receive_packet(&sock, &buf)) == -1) { 
+	while (1) {
+		if ((sz = recv_dgram(&sock, &buf)) == -1) { 
 			printf("Error code : %d\n", errno);
 			return EXIT_FAILURE;
 		}
-		if ((pog = organize_packet(buf, sz)) == NULL) {
+		if ((pog = organize_dgram(buf, sz)) == NULL) {
 			printf("Error code : %d\n", errno);
 			return EXIT_FAILURE;
 		}
-		if (print_packet(pog, i) == false) {
+		if (print_dgram(pog, i) == false) {
 			printf("Error code : %d\n", errno);
 			return EXIT_FAILURE;
 		}
