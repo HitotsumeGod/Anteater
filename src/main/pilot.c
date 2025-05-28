@@ -9,8 +9,27 @@
 #include <unistd.h>
 #include "anteater.h"
 
+#define fname "hexdumps"
+
+void dump(FILE *fp, char *todump, size_t dumpsize);
+
+void dump(FILE *fp, char *buf, size_t dumpsiz) {
+
+	int counter = 0;
+
+	for (int i = 0; i < dumpsiz; i++) {
+		if (counter == i - PAYLOAD_SPACING) {
+			fprintf(fp, "\n");
+			counter = i;
+		}
+		fprintf(fp, "%02X ", (unsigned char) *(buf + i));
+	}
+
+}
+
 int main(int argc, char *argv) {
 
+	FILE *ff;
 	org_packet *o;
 	struct sockaddr_in src, dest;
 	struct sockaddr_storage ss;
@@ -19,6 +38,10 @@ int main(int argc, char *argv) {
 	int rsock, loop_c, counter, icmp, isp, tcp, udp, nohop, smp; 
 	char buf[MAXBUF], dummy[INET_ADDRSTRLEN];
 
+	if ((ff = fopen(fname, "w")) == NULL) {
+		perror("fopen err");
+		return EXIT_FAILURE;
+	}
 	if ((rsock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
 		perror("sock err");
 		return EXIT_FAILURE;
@@ -34,38 +57,52 @@ int main(int argc, char *argv) {
 			perror("recv err");
 			return EXIT_FAILURE;
 		}
+		//dump(ff, buf, full_siz);
 		o -> ethh = (struct ethhdr *) buf;
 		o -> iph = (struct iphdr *) (buf + sizeof(struct ethhdr));
 		iphdrlen = o -> iph -> ihl * 4;
-		o -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
-		tcphdrlen = o -> tcph -> doff * 4;
-		o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
-		o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
 		src.sin_addr.s_addr = o -> iph -> saddr;
 		dest.sin_addr.s_addr = o -> iph -> daddr;
-		if (argc == 1) {
-			switch (o -> iph -> protocol) {
-			case 1:
-				icmp++;
-				break;
-			case 5:
-				isp++;
-				break;
-			case 6:
-				tcp++;
-				break;
-			case 17:
-				udp++;
-				break;
-			case 114:
-				nohop++;
-				break;
-			case 121:
-				smp++;
-				break;
-			}
+		switch (o -> iph -> protocol) {
+		case 1:
+			icmp++;
+			o -> tcph = NULL;
+			o -> udph = NULL;
+			o -> payload = NULL;
+			o -> psiz = 0;
+			break;
+		case 5:
+			isp++;
+			o -> tcph = NULL;
+			o -> udph = NULL;
+			o -> payload = NULL;
+			o -> psiz = 0;
+			break;
+		case 6:
+			tcp++;
+			o -> udph = NULL;
+			o -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+			tcphdrlen = o -> tcph -> doff * 4;
+			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
+			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
+			break;
+		case 17:
+			udp++;
+			o -> tcph = NULL;
+			o -> udph = (struct udphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct udphdr);
+			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
+			break;
+		case 114:
+			nohop++;
+			break;
+		case 121:
+			smp++;
+			break;
+		}
+		if (argc == 1) 
 			printf("ICMP: %d ISP: %d TCP: %d UDP: %d NOHOP: %d SMP: %d\r", icmp, isp, tcp, udp, nohop, smp);
-		} else {
+		else {
 			printf("\n");
 			printf("     ##########BEGIN PACKET %d##########\n\n", loop_c);
 			printf("     - - - - - Start of Ethernet Header - - - - -\n");
@@ -96,6 +133,25 @@ int main(int argc, char *argv) {
 				printf("     |TCP Window is %u\n", ntohs(o -> tcph -> window));
 				printf("     |TCP Checksum is %u\n", ntohs(o -> tcph -> check));
 				printf("     |TCP Urgent Pointer is %u\n\n", ntohs(o -> tcph -> urg_ptr));
+				if (o -> psiz > 0) {
+					printf("     - - - - - Start of Datagram Payload - - - - -\n\n");	
+					printf("     ");
+					for (int i = counter = 0; i < o -> psiz; i++) {
+						if (counter == i - PAYLOAD_SPACING) {
+							printf("\n     ");
+							counter = i;
+						}
+					printf("%02X ", (unsigned char) *(o -> payload + i));
+					}
+					printf("\n\n");
+				} else 
+					printf("     EMPTY DATAGRAM PAYLOAD\n\n");
+			} else if (o -> iph -> protocol == 17) {
+				printf("     - - - - - Start of UDP Header - - - - -\n");
+				printf("     |UDP Source Port is %u\n", ntohs(o -> udph -> source));
+				printf("     |UDP Destination Port is %u\n", ntohs(o -> udph -> dest));
+				printf("     |UDP Datagram Length is %u\n", ntohs(o -> udph -> len));
+				printf("     |UDP Checksum is %u\n\n", ntohs(o -> udph -> check));
 				if (o -> psiz > 0) {
 					printf("     - - - - - Start of Datagram Payload - - - - -\n\n");	
 					printf("     ");

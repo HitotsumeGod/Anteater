@@ -6,6 +6,7 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/udp.h>
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
@@ -16,6 +17,7 @@ typedef struct {
 	struct ethhdr *ethh;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
+	struct udphdr *udph;
 	char *payload;
 	size_t psiz;
 } org_packet;
