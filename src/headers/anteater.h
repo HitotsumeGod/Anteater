@@ -22,11 +22,7 @@ typedef struct {
 	size_t psiz;
 } org_packet;
 
-extern ssize_t recv_dgram(int **ref_socket, char **ref_buffer);
-extern org_packet *organize_dgram(char *buffer, ssize_t bufsiz);
-extern org_packet *organize_packet(char *buffer, ssize_t bufsiz);
-extern bool print_dgram(org_packet *dgram, int iteration);
-extern bool print_tcp_packet(org_packet *packet, int iteration);
-extern bool dump_dgram(char *buffer);
+extern bool dump_hex(FILE *dumpfile, char *dump, size_t dumpsz);
+extern bool dump_text(FILE *dumpfile, char *dump, size_t dumpsz);
 
 #endif //__ANTEATER_H__

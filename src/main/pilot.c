@@ -12,35 +12,7 @@
 
 #define fname "hexdumps"
 
-void dump(FILE *fp, char *todump, size_t dumpsize);
-void dump_pr(FILE *fp, char *todump, size_t dumpsize);
 void sighand(int signal);
-
-void dump(FILE *fp, char *buf, size_t dumpsiz) {
-
-	int counter = 0;
-	
-	for (int i = 0; i < dumpsiz; i++) {
-		if (counter == i - PAYLOAD_SPACING) {
-			fprintf(fp, "\n");
-			counter = i;
-		}
-		fprintf(fp, "%02X ", (unsigned char) *(buf + i));
-	}
-
-}
-
-void dump_pr(FILE *fp, char *buf, size_t dumpsiz) {
-
-	fprintf(fp, "\t");
-	for (int i = 0; i < dumpsiz; i++) 
-		if (fprintf(fp, "%c", *(buf + i)) == -1) {
-			perror("fprintf err");
-			exit(EXIT_FAILURE);
-		}
-	fprintf(fp, "\n");
-
-}
 
 void sighand(int sig) {
 
@@ -124,7 +96,7 @@ int main(int argc, char *argv) {
 					while (*tbuf != '\r')
 						hostbuf[ii++] = *tbuf++;
 					fprintf(ff, "From %s\n", inet_ntop(AF_INET, &(src.sin_addr), dummy, sizeof(dummy)));
-					dump_pr(ff, hostbuf, ii);
+					dump_text(ff, hostbuf, ii);
 				}
 			break;
 		case 17:
@@ -145,6 +117,7 @@ int main(int argc, char *argv) {
 		free(o);
 		loop_c++;
 	}
+	fclose(ff);
 	return 0;
 
 }
