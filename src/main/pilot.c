@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -12,11 +13,13 @@
 #define fname "hexdumps"
 
 void dump(FILE *fp, char *todump, size_t dumpsize);
+void dump_pr(FILE *fp, char *todump, size_t dumpsize);
+void sighand(int signal);
 
 void dump(FILE *fp, char *buf, size_t dumpsiz) {
 
 	int counter = 0;
-
+	
 	for (int i = 0; i < dumpsiz; i++) {
 		if (counter == i - PAYLOAD_SPACING) {
 			fprintf(fp, "\n");
@@ -27,17 +30,44 @@ void dump(FILE *fp, char *buf, size_t dumpsiz) {
 
 }
 
+void dump_pr(FILE *fp, char *buf, size_t dumpsiz) {
+
+	fprintf(fp, "\t");
+	for (int i = 0; i < dumpsiz; i++) 
+		if (fprintf(fp, "%c", *(buf + i)) == -1) {
+			perror("fprintf err");
+			exit(EXIT_FAILURE);
+		}
+	fprintf(fp, "\n");
+
+}
+
+void sighand(int sig) {
+
+	if (sig == SIGINT) {
+		exit(EXIT_SUCCESS);
+	}
+
+}
+
 int main(int argc, char *argv) {
 
 	FILE *ff;
 	org_packet *o;
+	struct sigaction sga;
 	struct sockaddr_in src, dest;
 	struct sockaddr_storage ss;
 	socklen_t ss_siz;
 	ssize_t full_siz, iphdrlen, tcphdrlen;
 	int rsock, loop_c, counter, icmp, isp, tcp, udp, nohop, smp, http;
-	char minibuf[3], buf[MAXBUF], dummy[INET_ADDRSTRLEN];
+	char *tbuf, minibuf[3], hostbuf[100], buf[MAXBUF], dummy[INET_ADDRSTRLEN];
 
+	memset(&sga, 0, sizeof(sga));
+	sga.sa_handler = &sighand;
+	if (sigaction(SIGINT, &sga, NULL) == -1) {
+		perror("sigact err");
+		exit(EXIT_FAILURE);
+	}
 	if ((ff = fopen(fname, "w")) == NULL) {
 		perror("fopen err");
 		return EXIT_FAILURE;
@@ -48,6 +78,7 @@ int main(int argc, char *argv) {
 	}
 	ss_siz = sizeof(ss);
 	icmp = isp = tcp = udp = nohop = smp = http = loop_c = 0;
+	memset(hostbuf, 0, sizeof(hostbuf));
 	while (1) {
 		if ((o = malloc(sizeof(org_packet))) == NULL) {
 			perror("malloc err");
@@ -84,6 +115,17 @@ int main(int argc, char *argv) {
 			tcphdrlen = o -> tcph -> doff * 4;
 			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
 			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
+			for (int i = 0, ii = 0; i < o -> psiz; i++) 
+				if (buf[i] == 'H' && buf[i+1] == 'o' && buf[i+2] == 's' && buf[i+3] == 't') {
+					if (http > 4)
+						exit(EXIT_SUCCESS);
+					http++;
+					tbuf = buf + i;
+					while (*tbuf != '\r')
+						hostbuf[ii++] = *tbuf++;
+					fprintf(ff, "From %s\n", inet_ntop(AF_INET, &(src.sin_addr), dummy, sizeof(dummy)));
+					dump_pr(ff, hostbuf, ii);
+				}
 			break;
 		case 17:
 			udp++;
@@ -99,11 +141,6 @@ int main(int argc, char *argv) {
 			smp++;
 			break;
 		}
-		for (int i = 0; i < o -> psiz; i++) 
-			if (buf[i] == 'H' && buf[i+1] == 'T' && buf[i+2] == 'T' && buf[i+3] == 'P' && o -> iph -> protocol == 6) {
-				http++;
-				dump(ff, buf, full_siz);
-			}
 		printf("Total Packets Received: %d   HTTP Packets Received %d\r", icmp + isp + tcp + udp + nohop + smp, http);
 		free(o);
 		loop_c++;
