@@ -12,7 +12,7 @@ $(BUILD):
 		mkdir $@;		\
 	fi
 debug: $(BUILD)/pilot
-	$(DBG) --leak-check=full --show-leak-kinds=all --track-origins=yes -s $^
+	$(DBG) --leak-check=full --show-leak-kinds=all --track-origins=yes -s $^ a
 clean:
 	rm -rf $(BUILD)
 	rm -f hexdumps

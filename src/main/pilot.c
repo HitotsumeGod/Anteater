@@ -74,7 +74,8 @@ int main(int argc, char *argv) {
 				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET, &(src.sin_addr), dummy, sizeof(dummy)));
 				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET, &(dest.sin_addr), dummy, sizeof(dummy)));
 			}
-		} else { 
+		} else {
+			free(o -> nhdr);	
 			free(o -> thdr);
 			free(o);
 			loop_c++;
@@ -83,8 +84,28 @@ int main(int argc, char *argv) {
 		switch (o -> nhdr -> iph -> protocol) {
 		case 1:
 			icmp++;
-			o -> payload = NULL;
-			o -> psiz = 0;
+			o -> thdr -> icmph = (struct icmphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr);
+			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct icmphdr);
+			if (__print) {
+				printf("     - - - - - Start of ICMP Header - - - - -\n");
+				printf("     ICMP Type is %u\n", o -> thdr -> icmph -> type);
+				printf("     ICMP Code is %u\n", o -> thdr -> icmph -> code);
+				printf("     ICMP Checksum is %u\n\n", ntohs(o -> thdr -> icmph -> checksum));
+				switch (o -> thdr -> icmph -> type) {
+				case ICMP_ECHOREPLY:
+					break;
+				case ICMP_DEST_UNREACH:
+					;
+					break;
+				case ICMP_TIME_EXCEEDED:
+					;
+					break;
+				case ICMP_PARAMETERPROB:
+					;
+					break;
+				}
+			}
 			break;
 		case 5:
 			isp++;
@@ -149,6 +170,7 @@ int main(int argc, char *argv) {
 				printf("     EMPTY DATAGRAM PAYLOAD\n\n");
 			printf("     ##########END PACKET %d##########\n\n", loop_c);
 			}
+		free(o -> nhdr);
 		free(o -> thdr);
 		free(o);
 		loop_c++;
