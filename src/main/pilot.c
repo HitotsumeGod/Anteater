@@ -19,7 +19,7 @@ int main(int argc, char *argv) {
 	ssize_t full_siz, iphdrlen, tcphdrlen;
 	uint16_t nto;
 	int rsock, loop_c, counter, icmp, isp, tcp, udp, nohop, smp; 
-	char buf[MAXBUF], dummy[INET_ADDRSTRLEN];
+	char buf[MAXBUF], addrstorage[INET_ADDRSTRLEN], addr6storage[INET6_ADDRSTRLEN];
 	bool __print;
 
 	if (argc == 1) 
@@ -60,32 +60,190 @@ int main(int argc, char *argv) {
 			iphdrlen = o -> nhdr -> iph -> ihl * 4;
 			src.sin_addr.s_addr = o -> nhdr -> iph -> saddr;
 			dest.sin_addr.s_addr = o -> nhdr -> iph -> daddr;
+			if (inet_ntop(AF_INET, &(src.sin_addr), addrstorage, sizeof(addrstorage)) == NULL) {
+				perror("inet_ntop err");
+				return EXIT_FAILURE;
+			}
 			if (__print) {
 				printf("     - - - - - Start of IP Header - - - - -\n");
 				printf("     |IP Version is %u\n", o -> nhdr -> iph -> version);
 				printf("     |IP Header Length is %u\n", o -> nhdr -> iph -> ihl);
 				printf("     |IP Type of Service is %u\n", o -> nhdr -> iph -> tos);
 				printf("     |IP Total Length is %u\n", ntohs(o -> nhdr -> iph -> tot_len));
-				printf("     |IP ID is %u\n", ntohs(o -> nhdr -> iph -> tot_len));
+				printf("     |IP ID is %u\n", ntohs(o -> nhdr -> iph -> id));
 				printf("     |IP Fragment Offset is %u\n", ntohs(o -> nhdr -> iph -> frag_off));
 				printf("     |IP Time to Live is %u\n", o -> nhdr -> iph -> ttl);
 				printf("     |IP Protocol is %u\n", o -> nhdr -> iph -> protocol);
 				printf("     |IP Checksum is %u\n", ntohs(o -> nhdr -> iph -> check));
-				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET, &(src.sin_addr), dummy, sizeof(dummy)));
-				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET, &(dest.sin_addr), dummy, sizeof(dummy)));
+				printf("     |IP Source Address is %s\n", addrstorage);
+				if (inet_ntop(AF_INET, &(dest.sin_addr), addrstorage, sizeof(addrstorage)) == NULL) {
+					perror("inet_ntop err");
+					return EXIT_FAILURE;
+				}
+				printf("     |IP Destination Address is %s\n\n", addrstorage);
+			}
+			switch (o -> nhdr -> iph -> protocol) {
+			case IPPROTO_ICMP:
+				icmp++;
+				o -> thdr -> icmph = (struct icmphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+				o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr);
+				o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct icmphdr);
+				if (__print) {
+					printf("     - - - - - Start of ICMP Header - - - - -\n");
+					printf("     ICMP Type is %u\n", o -> thdr -> icmph -> type);
+					printf("     ICMP Code is %u\n", o -> thdr -> icmph -> code);
+					printf("     ICMP Checksum is %u\n\n", ntohs(o -> thdr -> icmph -> checksum));
+					switch (o -> thdr -> icmph -> type) {
+					case ICMP_ECHOREPLY:
+						break;
+					case ICMP_DEST_UNREACH:
+						;
+						break;
+					case ICMP_TIME_EXCEEDED:
+						;
+						break;
+					case ICMP_PARAMETERPROB:
+						;
+						break;
+					}
+				}
+				break;
+			case 5:
+				isp++;
+				o -> payload = NULL;
+				o -> psiz = 0;
+				break;
+			case IPPROTO_TCP:
+				tcp++;
+				o -> thdr -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+				tcphdrlen = o -> thdr -> tcph -> doff * 4;
+				o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
+				o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
+				if (__print) {
+					printf("     - - - - - Start of TCP Header - - - - -\n");
+					printf("     |TCP Source Port is %u\n", ntohs(o -> thdr -> tcph -> th_sport));
+					printf("     |TCP Destination Port is %u\n", ntohs(o -> thdr -> tcph -> th_dport));
+					printf("     |TCP Sequence # is %u\n", ntohl(o -> thdr -> tcph -> th_seq));
+					printf("     |TCP Ack # is %u\n", ntohl(o -> thdr -> tcph -> th_ack));
+					printf("     |TCP Data Offset is %u\n", o -> thdr -> tcph -> th_off);
+					printf("     |TCP Reserved is %u\n", o -> thdr -> tcph -> res1);
+					printf("     |TCP Control Bits are as follows: URG: %u ACK: %u PSH: %u RST: %u SYN: %u FIN: %u\n", o -> thdr -> tcph -> urg, o -> thdr -> tcph -> ack, o -> thdr -> tcph -> psh, o -> thdr -> tcph -> rst, o -> thdr -> tcph -> syn, o -> thdr -> tcph -> fin);
+					printf("     |TCP Window is %u\n", ntohs(o -> thdr -> tcph -> window));
+					printf("     |TCP Checksum is %u\n", ntohs(o -> thdr -> tcph -> check));
+					printf("     |TCP Urgent Pointer is %u\n\n", ntohs(o -> thdr -> tcph -> urg_ptr));
+				}
+				break;
+			case IPPROTO_UDP:
+				udp++;
+				o -> thdr -> udph = (struct udphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
+				o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct udphdr);
+				o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
+				if (__print) {
+					printf("     - - - - - Start of UDP Header - - - - -\n");
+					printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
+					printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
+					printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
+					printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
+				}
+				break;
+			case 114:
+				nohop++;
+				break;
+			case 121:
+				smp++;
+				break;
 			}
 		} else if (nto == ETH_P_IPV6) {
 			o -> nhdr -> ip6h = (struct ip6_hdr *) (buf + sizeof(struct ethhdr));
+			if (inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_src), addr6storage, sizeof(addr6storage)) == NULL) {
+				perror("inet_ntop err at src");
+				return EXIT_FAILURE;
+			}
 			if (__print) {
 				printf("     - - - - - Start of IP Header - - - - -\n");
 				//printf("     |IP Version is %u\n", o -> nhdr -> ip6h -> ip6_vfc);
 				//printf("     |IP Traffic Class is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[0], o -> nhdr -> ip6h -> priority);
 				//printf("     |IP Flow Label is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[1], o -> nhdr -> ip6h -> flow_lbl[2]);
-				//printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> payload_len));
+				printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> ip6_plen));
 				printf("     |IP Next Header is %u\n", o -> nhdr -> ip6h -> ip6_nxt);
-				//printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> hop_limit);
-				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_src), dummy, sizeof(dummy)));
-				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_dst), dummy, sizeof(dummy)));
+				printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> ip6_hlim);
+				printf("     |IP Source Address is %s\n", addr6storage);
+				if (inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_dst), addr6storage, sizeof(addr6storage)) == NULL) {
+					perror("inet_ntop err");
+					return EXIT_FAILURE;
+				}
+				printf("     |IP Destination Address is %s\n\n", addr6storage);
+			}
+			switch (o -> nhdr -> ip6h -> ip6_nxt) {
+			case IPPROTO_ICMP:
+				icmp++;
+				o -> thdr -> icmph = (struct icmphdr *) (buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
+				o -> payload = buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct icmphdr);
+				o -> psiz = full_siz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct icmphdr);
+				if (__print) {
+					printf("     - - - - - Start of ICMP Header - - - - -\n");
+					printf("     ICMP Type is %u\n", o -> thdr -> icmph -> type);
+					printf("     ICMP Code is %u\n", o -> thdr -> icmph -> code);
+					printf("     ICMP Checksum is %u\n\n", ntohs(o -> thdr -> icmph -> checksum));
+					switch (o -> thdr -> icmph -> type) {
+					case ICMP_ECHOREPLY:
+						break;
+					case ICMP_DEST_UNREACH:
+						;
+						break;
+					case ICMP_TIME_EXCEEDED:
+						;
+						break;
+					case ICMP_PARAMETERPROB:
+						;
+						break;
+					}
+				}
+				break;
+			case 5:
+				isp++;
+				o -> payload = NULL;
+				o -> psiz = 0;
+				break;
+			case IPPROTO_TCP:
+				tcp++;
+				o -> thdr -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
+				tcphdrlen = o -> thdr -> tcph -> doff * 4;
+				o -> payload = buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + tcphdrlen;
+				o -> psiz = full_siz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - tcphdrlen;
+				if (__print) {
+					printf("     - - - - - Start of TCP Header - - - - -\n");
+					printf("     |TCP Source Port is %u\n", ntohs(o -> thdr -> tcph -> th_sport));
+					printf("     |TCP Destination Port is %u\n", ntohs(o -> thdr -> tcph -> th_dport));
+					printf("     |TCP Sequence # is %u\n", ntohl(o -> thdr -> tcph -> th_seq));
+					printf("     |TCP Ack # is %u\n", ntohl(o -> thdr -> tcph -> th_ack));
+					printf("     |TCP Data Offset is %u\n", o -> thdr -> tcph -> th_off);
+					printf("     |TCP Reserved is %u\n", o -> thdr -> tcph -> res1);
+					printf("     |TCP Control Bits are as follows: URG: %u ACK: %u PSH: %u RST: %u SYN: %u FIN: %u\n", o -> thdr -> tcph -> urg, o -> thdr -> tcph -> ack, o -> thdr -> tcph -> psh, o -> thdr -> tcph -> rst, o -> thdr -> tcph -> syn, o -> thdr -> tcph -> fin);
+					printf("     |TCP Window is %u\n", ntohs(o -> thdr -> tcph -> window));
+					printf("     |TCP Checksum is %u\n", ntohs(o -> thdr -> tcph -> check));
+					printf("     |TCP Urgent Pointer is %u\n\n", ntohs(o -> thdr -> tcph -> urg_ptr));
+				}
+				break;
+			case IPPROTO_UDP:
+				udp++;
+				o -> thdr -> udph = (struct udphdr *) (buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
+				o -> payload = buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct udphdr);
+				o -> psiz = full_siz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct udphdr);
+				if (__print) {
+					printf("     - - - - - Start of UDP Header - - - - -\n");
+					printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
+					printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
+					printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
+					printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
+				}
+				break;
+			case 114:
+				nohop++;
+				break;
+			case 121:
+				smp++;
+				break;
 			}
 		} else {
 			free(o -> nhdr);	
@@ -93,77 +251,6 @@ int main(int argc, char *argv) {
 			free(o);
 			loop_c++;
 			continue;
-		}
-		switch (o -> nhdr -> iph -> protocol) {
-		case 1:
-			icmp++;
-			o -> thdr -> icmph = (struct icmphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
-			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr);
-			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct icmphdr);
-			if (__print) {
-				printf("     - - - - - Start of ICMP Header - - - - -\n");
-				printf("     ICMP Type is %u\n", o -> thdr -> icmph -> type);
-				printf("     ICMP Code is %u\n", o -> thdr -> icmph -> code);
-				printf("     ICMP Checksum is %u\n\n", ntohs(o -> thdr -> icmph -> checksum));
-				switch (o -> thdr -> icmph -> type) {
-				case ICMP_ECHOREPLY:
-					break;
-				case ICMP_DEST_UNREACH:
-					;
-					break;
-				case ICMP_TIME_EXCEEDED:
-					;
-					break;
-				case ICMP_PARAMETERPROB:
-					;
-					break;
-				}
-			}
-			break;
-		case 5:
-			isp++;
-			o -> payload = NULL;
-			o -> psiz = 0;
-			break;
-		case 6:
-			tcp++;
-			o -> thdr -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
-			tcphdrlen = o -> thdr -> tcph -> doff * 4;
-			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
-			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
-			if (__print) {
-				printf("     - - - - - Start of TCP Header - - - - -\n");
-				printf("     |TCP Source Port is %u\n", ntohs(o -> thdr -> tcph -> th_sport));
-				printf("     |TCP Destination Port is %u\n", ntohs(o -> thdr -> tcph -> th_dport));
-				printf("     |TCP Sequence # is %u\n", ntohl(o -> thdr -> tcph -> th_seq));
-				printf("     |TCP Ack # is %u\n", ntohl(o -> thdr -> tcph -> th_ack));
-				printf("     |TCP Data Offset is %u\n", o -> thdr -> tcph -> th_off);
-				printf("     |TCP Reserved is %u\n", o -> thdr -> tcph -> res1);
-				printf("     |TCP Control Bits are as follows: URG: %u ACK: %u PSH: %u RST: %u SYN: %u FIN: %u\n", o -> thdr -> tcph -> urg, o -> thdr -> tcph -> ack, o -> thdr -> tcph -> psh, o -> thdr -> tcph -> rst, o -> thdr -> tcph -> syn, o -> thdr -> tcph -> fin);
-				printf("     |TCP Window is %u\n", ntohs(o -> thdr -> tcph -> window));
-				printf("     |TCP Checksum is %u\n", ntohs(o -> thdr -> tcph -> check));
-				printf("     |TCP Urgent Pointer is %u\n\n", ntohs(o -> thdr -> tcph -> urg_ptr));
-			}
-			break;
-		case 17:
-			udp++;
-			o -> thdr -> udph = (struct udphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
-			o -> payload = buf + sizeof(struct ethhdr) + iphdrlen + sizeof(struct udphdr);
-			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
-			if (__print) {
-				printf("     - - - - - Start of UDP Header - - - - -\n");
-				printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
-				printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
-				printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
-				printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
-			}
-			break;
-		case 114:
-			nohop++;
-			break;
-		case 121:
-			smp++;
-			break;
 		}
 		if (!__print)  
 			printf("ICMP: %d ISP: %d TCP: %d UDP: %d NOHOP: %d SMP: %d\r", icmp, isp, tcp, udp, nohop, smp);
