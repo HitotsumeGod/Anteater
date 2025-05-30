@@ -75,17 +75,17 @@ int main(int argc, char *argv) {
 				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET, &(dest.sin_addr), dummy, sizeof(dummy)));
 			}
 		} else if (nto == ETH_P_IPV6) {
-			o -> nhdr -> ip6h = (struct ipv6hdr *) (buf + sizeof(struct ethhdr));
+			o -> nhdr -> ip6h = (struct ip6_hdr *) (buf + sizeof(struct ethhdr));
 			if (__print) {
 				printf("     - - - - - Start of IP Header - - - - -\n");
-				printf("     |IP Version is %u\n", o -> nhdr -> ip6h -> version);
-				printf("     |IP Traffic Class is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[0], o -> nhdr -> ip6h -> priority);
-				printf("     |IP Flow Label is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[1], o -> nhdr -> ip6h -> flow_lbl[2]);
-				printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> payload_len));
-				printf("     |IP Next Header is %u\n", o -> nhdr -> ip6h -> nexthdr);
-				printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> hop_limit);
-				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> saddr), dummy, sizeof(dummy)));
-				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> daddr), dummy, sizeof(dummy)));
+				//printf("     |IP Version is %u\n", o -> nhdr -> ip6h -> ip6_vfc);
+				//printf("     |IP Traffic Class is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[0], o -> nhdr -> ip6h -> priority);
+				//printf("     |IP Flow Label is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[1], o -> nhdr -> ip6h -> flow_lbl[2]);
+				//printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> payload_len));
+				printf("     |IP Next Header is %u\n", o -> nhdr -> ip6h -> ip6_nxt);
+				//printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> hop_limit);
+				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_src), dummy, sizeof(dummy)));
+				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_dst), dummy, sizeof(dummy)));
 			}
 		} else {
 			free(o -> nhdr);	
@@ -133,11 +133,11 @@ int main(int argc, char *argv) {
 			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
 			if (__print) {
 				printf("     - - - - - Start of TCP Header - - - - -\n");
-				printf("     |TCP Source Port is %u\n", ntohs(o -> thdr -> tcph -> source));
-				printf("     |TCP Destination Port is %u\n", ntohs(o -> thdr -> tcph -> dest));
-				printf("     |TCP Sequence # is %u\n", ntohs(o -> thdr -> tcph -> seq));
-				printf("     |TCP Ack # is %u\n", ntohs(o -> thdr -> tcph -> ack_seq));
-				printf("     |TCP Data Offset is %u\n", o -> thdr -> tcph -> doff);
+				printf("     |TCP Source Port is %u\n", ntohs(o -> thdr -> tcph -> th_sport));
+				printf("     |TCP Destination Port is %u\n", ntohs(o -> thdr -> tcph -> th_dport));
+				printf("     |TCP Sequence # is %u\n", ntohl(o -> thdr -> tcph -> th_seq));
+				printf("     |TCP Ack # is %u\n", ntohl(o -> thdr -> tcph -> th_ack));
+				printf("     |TCP Data Offset is %u\n", o -> thdr -> tcph -> th_off);
 				printf("     |TCP Reserved is %u\n", o -> thdr -> tcph -> res1);
 				printf("     |TCP Control Bits are as follows: URG: %u ACK: %u PSH: %u RST: %u SYN: %u FIN: %u\n", o -> thdr -> tcph -> urg, o -> thdr -> tcph -> ack, o -> thdr -> tcph -> psh, o -> thdr -> tcph -> rst, o -> thdr -> tcph -> syn, o -> thdr -> tcph -> fin);
 				printf("     |TCP Window is %u\n", ntohs(o -> thdr -> tcph -> window));
@@ -152,10 +152,10 @@ int main(int argc, char *argv) {
 			o -> psiz = full_siz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
 			if (__print) {
 				printf("     - - - - - Start of UDP Header - - - - -\n");
-				printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> source));
-				printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> dest));
-				printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> len));
-				printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> check));
+				printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
+				printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
+				printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
+				printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
 			}
 			break;
 		case 114:

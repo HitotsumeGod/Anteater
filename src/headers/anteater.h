@@ -3,12 +3,13 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-#include <linux/if_ether.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/icmp.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
+#include <netinet/ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
@@ -17,11 +18,12 @@
 
 union network_hdr {
 	struct iphdr *iph;
-	struct ipv6hdr *ip6h;
+	struct ip6_hdr *ip6h;
 };
 
 union transport_hdr {
 	struct icmphdr *icmph;
+	struct icmp6_hdr *icmp6h;
 	struct tcphdr *tcph;
 	struct udphdr *udph;
 };
