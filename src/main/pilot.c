@@ -74,6 +74,19 @@ int main(int argc, char *argv) {
 				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET, &(src.sin_addr), dummy, sizeof(dummy)));
 				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET, &(dest.sin_addr), dummy, sizeof(dummy)));
 			}
+		} else if (nto == ETH_P_IPV6) {
+			o -> nhdr -> ip6h = (struct ipv6hdr *) (buf + sizeof(struct ethhdr));
+			if (__print) {
+				printf("     - - - - - Start of IP Header - - - - -\n");
+				printf("     |IP Version is %u\n", o -> nhdr -> ip6h -> version);
+				printf("     |IP Traffic Class is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[0], o -> nhdr -> ip6h -> priority);
+				printf("     |IP Flow Label is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[1], o -> nhdr -> ip6h -> flow_lbl[2]);
+				printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> payload_len));
+				printf("     |IP Next Header is %u\n", o -> nhdr -> ip6h -> nexthdr);
+				printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> hop_limit);
+				printf("     |IP Source Address is %s\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> saddr), dummy, sizeof(dummy)));
+				printf("     |IP Destination Address is %s\n\n", inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> daddr), dummy, sizeof(dummy)));
+			}
 		} else {
 			free(o -> nhdr);	
 			free(o -> thdr);
