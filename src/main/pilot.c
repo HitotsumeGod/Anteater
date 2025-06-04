@@ -19,9 +19,20 @@
 				printf("%c", '0');		\
 		printf("\n");
 
+void sighand(int signal);
+
+void sighand(int sig) {
+
+	if (sig == SIGINT) {
+		exit(EXIT_SUCCESS);
+	}
+
+}
+
 int main(int argc, char *argv) {
 
 	struct org_packet *o;
+	struct sigaction sga;
 	struct sockaddr_in src, dest;
 	struct sockaddr_storage ss;
 	socklen_t ss_siz;
@@ -36,13 +47,19 @@ int main(int argc, char *argv) {
 		__print = false;
 	else
 		__print = true;
+	memset(&sga, 0, sizeof(sga));
+	sga.sa_handler = &sighand;
+	if (sigaction(SIGINT, &sga, NULL) == -1) {
+		perror("sigact err");
+		exit(EXIT_FAILURE);
+	}
 	if ((rsock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
 		perror("sock err");
 		return EXIT_FAILURE;
 	}
 	ss_siz = sizeof(ss);
 	icmp = isp = tcp = udp = nohop = smp = loop_c = 0;
-	while (loop_c < 10) {
+	while (1) {
 		if ((o = malloc(sizeof(struct org_packet))) == NULL || (o -> nhdr = malloc(sizeof(union network_hdr))) == NULL) {
 			perror("malloc err");
 			return EXIT_FAILURE;
@@ -118,11 +135,6 @@ int main(int argc, char *argv) {
 					}
 				}
 				break;
-			case 5:
-				isp++;
-				o -> payload = NULL;
-				o -> psiz = 0;
-				break;
 			case IPPROTO_TCP:
 				tcp++;
 				o -> thdr -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + iphdrlen);
@@ -152,15 +164,9 @@ int main(int argc, char *argv) {
 					printf("     - - - - - Start of UDP Header - - - - -\n");
 					printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
 					printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
-					printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
+					printf("     |UDP Segment Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
 					printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
 				}
-				break;
-			case 114:
-				nohop++;
-				break;
-			case 121:
-				smp++;
 				break;
 			}
 		} else if (nto == ETH_P_IPV6) {
@@ -211,11 +217,6 @@ int main(int argc, char *argv) {
 					}
 				}
 				break;
-			case 5:
-				isp++;
-				o -> payload = NULL;
-				o -> psiz = 0;
-				break;
 			case IPPROTO_TCP:
 				tcp++;
 				o -> thdr -> tcph = (struct tcphdr *) (buf + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
@@ -245,31 +246,11 @@ int main(int argc, char *argv) {
 					printf("     - - - - - Start of UDP Header - - - - -\n");
 					printf("     |UDP Source Port is %u\n", ntohs(o -> thdr -> udph -> uh_sport));
 					printf("     |UDP Destination Port is %u\n", ntohs(o -> thdr -> udph -> uh_dport));
-					printf("     |UDP Datagram Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
+					printf("     |UDP Segment Length is %u\n", ntohs(o -> thdr -> udph -> uh_ulen));
 					printf("     |UDP Checksum is %u\n\n", ntohs(o -> thdr -> udph -> uh_sum));
 				}
 				break;
-			case 114:
-				nohop++;
-				break;
-			case 121:
-				smp++;
-				break;
 			}
-		} else if (nto == ETH_P_ARP) {
-			o -> nhdr -> arpp = (struct arp_packet *) buf + sizeof(struct ethhdr);
-			printf("     - - - - - Start of ARP Packet - - - - -\n");
-			printf("     |ARP Hardware Type is %u\n", ntohs(o -> nhdr -> arpp -> htype));
-			printf("     |ARP Protocol Type is %u\n", ntohs(o -> nhdr -> arpp -> ptype));
-			printf("     |ARP Hardware Address Length is %u\n", o -> nhdr -> arpp -> hlen);
-			printf("     |ARP Protocol Address Length is %u\n", o -> nhdr -> arpp -> plen);
-			printf("     |ARP Operation is %u\n", ntohs(o -> nhdr -> arpp -> oper));
-			printf("     |ARP Sender Hardware Address is %u%u\n", ntohl(o -> nhdr -> arpp -> sha_1), ntohs(o -> nhdr -> arpp -> sha_2));
-			printf("     |ARP Sender Protocol Address is %u\n", ntohl(o -> nhdr -> arpp -> spa));
-			printf("     |ARP Target Hardware Address is %u%u\n", ntohl(o -> nhdr -> arpp -> tha_1), ntohs(o -> nhdr -> arpp -> tha_2));
-			printf("     |ARP Target Protocol Address is %u\n\n", ntohl(o -> nhdr -> arpp -> tpa));
-			o -> payload = buf + sizeof(struct ethhdr);
-			o -> psiz = full_siz - sizeof(struct ethhdr);
 		} else if (nto == ETH_P_SONOS) {
 			o -> payload = buf + sizeof(struct ethhdr);
 			o -> psiz = full_siz - sizeof(struct ethhdr);
@@ -284,7 +265,7 @@ int main(int argc, char *argv) {
 			printf("ICMP: %d ISP: %d TCP: %d UDP: %d NOHOP: %d SMP: %d\r", icmp, isp, tcp, udp, nohop, smp);
 		else {
 			if (o -> psiz > 0) {
-				printf("     - - - - - Start of Datagram Payload - - - - -\n");	
+				printf("     - - - - - Start of Packet Payload - - - - -\n");	
 				printf("     ");
 				for (int i = counter = 0; i < o -> psiz; i++) {
 					if (counter == i - PAYLOAD_SPACING) {
@@ -295,7 +276,7 @@ int main(int argc, char *argv) {
 				}
 				printf("\n\n");
 			} else 
-				printf("     EMPTY DATAGRAM PAYLOAD\n\n");
+				printf("     EMPTY PACKET PAYLOAD\n\n");
 			printf("     ##########END PACKET %d##########\n\n", loop_c);
 			}
 		free(o -> nhdr);
