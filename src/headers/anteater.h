@@ -13,12 +13,37 @@
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
+#define ETH_P_SONOS 0x6970
 #define MAXBUF 65535
-#define PAYLOAD_SPACING 18
+
+struct arp_packet {
+	uint16_t htype;
+	uint16_t ptype;
+	uint8_t hlen;
+	uint8_t plen;
+	uint16_t oper;
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	uint16_t sha_2;
+	uint32_t sha_1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	uint32_t sha_1;
+	uint16_t sha_2;
+#endif
+	uint32_t spa;
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	uint16_t tha_2;
+	uint32_t tha_1;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	uint32_t tha_1;
+	uint16_t tha_2;
+#endif
+	uint32_t tpa;
+};
 
 union network_hdr {
 	struct iphdr *iph;
 	struct ip6_hdr *ip6h;
+	struct arp_packet *arpp;
 };
 
 union transport_hdr {

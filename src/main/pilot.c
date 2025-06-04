@@ -10,6 +10,15 @@
 #include <unistd.h>
 #include "anteater.h"
 
+#define PAYLOAD_SPACING 18
+#define printbin(n) 						\
+		for (int i = 0; i < 32; i++)			\
+			if ((n >> i) & 1)			\
+				printf("%c", '1');		\
+			else					\
+				printf("%c", '0');		\
+		printf("\n");
+
 int main(int argc, char *argv) {
 
 	struct org_packet *o;
@@ -18,6 +27,7 @@ int main(int argc, char *argv) {
 	socklen_t ss_siz;
 	ssize_t full_siz, iphdrlen, tcphdrlen;
 	uint16_t nto;
+	uint32_t flow;
 	int rsock, loop_c, counter, icmp, isp, tcp, udp, nohop, smp; 
 	char buf[MAXBUF], addrstorage[INET_ADDRSTRLEN], addr6storage[INET6_ADDRSTRLEN];
 	bool __print;
@@ -32,7 +42,7 @@ int main(int argc, char *argv) {
 	}
 	ss_siz = sizeof(ss);
 	icmp = isp = tcp = udp = nohop = smp = loop_c = 0;
-	while (1) {
+	while (loop_c < 10) {
 		if ((o = malloc(sizeof(struct org_packet))) == NULL || (o -> nhdr = malloc(sizeof(union network_hdr))) == NULL) {
 			perror("malloc err");
 			return EXIT_FAILURE;
@@ -155,15 +165,16 @@ int main(int argc, char *argv) {
 			}
 		} else if (nto == ETH_P_IPV6) {
 			o -> nhdr -> ip6h = (struct ip6_hdr *) (buf + sizeof(struct ethhdr));
+			flow = ntohl(o -> nhdr -> ip6h -> ip6_flow);
 			if (inet_ntop(AF_INET6, &(o -> nhdr -> ip6h -> ip6_src), addr6storage, sizeof(addr6storage)) == NULL) {
 				perror("inet_ntop err at src");
 				return EXIT_FAILURE;
 			}
 			if (__print) {
 				printf("     - - - - - Start of IP Header - - - - -\n");
-				//printf("     |IP Version is %u\n", o -> nhdr -> ip6h -> ip6_vfc);
-				//printf("     |IP Traffic Class is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[0], o -> nhdr -> ip6h -> priority);
-				//printf("     |IP Flow Label is %u%u\n", o -> nhdr -> ip6h -> flow_lbl[1], o -> nhdr -> ip6h -> flow_lbl[2]);
+				printf("     |IP Version is %u\n", (flow & 0xF0000000) >> 28);
+				printf("     |IP Traffic Class is %u\n", (flow & 0x0FF00000 << 1) >> 24);
+				printf("     |IP Flow Label is %u\n", flow & 0x000FFFFF);
 				printf("     |IP Payload Length is %u\n", ntohs(o -> nhdr -> ip6h -> ip6_plen));
 				printf("     |IP Next Header is %u\n", o -> nhdr -> ip6h -> ip6_nxt);
 				printf("     |IP Hop Limit is %u\n", o -> nhdr -> ip6h -> ip6_hlim);
@@ -245,6 +256,23 @@ int main(int argc, char *argv) {
 				smp++;
 				break;
 			}
+		} else if (nto == ETH_P_ARP) {
+			o -> nhdr -> arpp = (struct arp_packet *) buf + sizeof(struct ethhdr);
+			printf("     - - - - - Start of ARP Packet - - - - -\n");
+			printf("     |ARP Hardware Type is %u\n", ntohs(o -> nhdr -> arpp -> htype));
+			printf("     |ARP Protocol Type is %u\n", ntohs(o -> nhdr -> arpp -> ptype));
+			printf("     |ARP Hardware Address Length is %u\n", o -> nhdr -> arpp -> hlen);
+			printf("     |ARP Protocol Address Length is %u\n", o -> nhdr -> arpp -> plen);
+			printf("     |ARP Operation is %u\n", ntohs(o -> nhdr -> arpp -> oper));
+			printf("     |ARP Sender Hardware Address is %u%u\n", ntohl(o -> nhdr -> arpp -> sha_1), ntohs(o -> nhdr -> arpp -> sha_2));
+			printf("     |ARP Sender Protocol Address is %u\n", ntohl(o -> nhdr -> arpp -> spa));
+			printf("     |ARP Target Hardware Address is %u%u\n", ntohl(o -> nhdr -> arpp -> tha_1), ntohs(o -> nhdr -> arpp -> tha_2));
+			printf("     |ARP Target Protocol Address is %u\n\n", ntohl(o -> nhdr -> arpp -> tpa));
+			o -> payload = buf + sizeof(struct ethhdr);
+			o -> psiz = full_siz - sizeof(struct ethhdr);
+		} else if (nto == ETH_P_SONOS) {
+			o -> payload = buf + sizeof(struct ethhdr);
+			o -> psiz = full_siz - sizeof(struct ethhdr);
 		} else {
 			free(o -> nhdr);	
 			free(o -> thdr);
@@ -256,14 +284,14 @@ int main(int argc, char *argv) {
 			printf("ICMP: %d ISP: %d TCP: %d UDP: %d NOHOP: %d SMP: %d\r", icmp, isp, tcp, udp, nohop, smp);
 		else {
 			if (o -> psiz > 0) {
-				printf("     - - - - - Start of Datagram Payload - - - - -\n\n");	
+				printf("     - - - - - Start of Datagram Payload - - - - -\n");	
 				printf("     ");
 				for (int i = counter = 0; i < o -> psiz; i++) {
 					if (counter == i - PAYLOAD_SPACING) {
 						printf("\n     ");
 						counter = i;
 					}
-				printf("%02X ", (unsigned char) *(o -> payload + i));
+					printf("%02X ", (unsigned char) *(o -> payload + i));
 				}
 				printf("\n\n");
 			} else 
