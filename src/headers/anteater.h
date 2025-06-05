@@ -16,34 +16,9 @@
 #define ETH_P_SONOS 0x6970
 #define MAXBUF 65535
 
-struct arp_packet {
-	uint16_t htype;
-	uint16_t ptype;
-	uint8_t hlen;
-	uint8_t plen;
-	uint16_t oper;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	uint16_t sha_2;
-	uint32_t sha_1;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	uint32_t sha_1;
-	uint16_t sha_2;
-#endif
-	uint32_t spa;
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	uint16_t tha_2;
-	uint32_t tha_1;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	uint32_t tha_1;
-	uint16_t tha_2;
-#endif
-	uint32_t tpa;
-};
-
 union network_hdr {
 	struct iphdr *iph;
 	struct ip6_hdr *ip6h;
-	struct arp_packet *arpp;
 };
 
 union transport_hdr {
@@ -61,11 +36,24 @@ struct org_packet {
 	size_t psiz;
 };
 
-extern ssize_t recv_dgram(int **ref_socket, char **ref_buffer);
-extern struct org_packet *organize_dgram(char *buffer, ssize_t bufsiz);
-extern struct org_packet *organize_packet(char *buffer, ssize_t bufsiz);
-extern bool print_dgram(struct org_packet *dgram, int iteration);
-extern bool print_tcp_packet(struct org_packet *packet, int iteration);
-extern bool dump_dgram(char *buffer);
+enum network_t {
+	IPV4,
+	IPV6
+};
+
+enum transport_t {
+	ICMP,
+	TCP,
+	UDP
+};
+
+extern ssize_t recv_frame(int socket, char **buffer);
+extern ssize_t recv_dgram(int socket, enum network_t type, char **buffer);
+extern ssize_t recv_packet_ip(int socket, enum transport_t type, char **buffer);
+extern ssize_t recv_packet_ip6(int socket, enum transport_t type, char **buffer);
+extern bool print_minimal(char *frame);
+extern bool print_frame(char *frame, size_t framesiz);
+extern bool print_dgram(char *dgram, size_t gramsiz);
+extern bool print_packet(char *packet, size_t pcksiz);
 
 #endif //__ANTEATER_H__

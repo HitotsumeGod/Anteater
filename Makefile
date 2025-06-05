@@ -3,7 +3,7 @@ DBG=valgrind
 SRC=src/main
 DEPS=src/headers
 BUILD=build
-SRS=$(SRC)/pilot.c
+SRS=$(SRC)/pilot.c $(SRC)/recv.c $(SRC)/print.c
 
 $(BUILD)/pilot: $(SRS) $(BUILD)
 	$(CC) -o $@ $(SRS) -I $(DEPS) -g
