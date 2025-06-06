@@ -16,7 +16,7 @@ int main(void) {
 		errno = SOCKET_ERR;
 		return -1;
 	}
-	while (i++ < 50) {
+	while (1) {
 		if ((fullsiz = recv_frame(sock, &buf)) == -1) {
 			printf("Error 1 : %d\n", errno);
 			return -1;

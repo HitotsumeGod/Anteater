@@ -8,5 +8,6 @@
 #define CONNECT_ERR -14
 #define RECV_ERR -15
 #define SEND_ERR -16
+#define INET_TRANS_ERR -17
 
 #endif //__SOCKETERRORS_H__

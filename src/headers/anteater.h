@@ -28,14 +28,6 @@ union transport_hdr {
 	struct udphdr *udph;
 };
 
-struct org_packet {
-	struct ethhdr *ethh;
-	union network_hdr *nhdr;
-	union transport_hdr *thdr;
-	char *payload;
-	size_t psiz;
-};
-
 enum network_t {
 	IPV4,
 	IPV6
@@ -53,7 +45,12 @@ extern ssize_t recv_packet_ip(int socket, enum transport_t type, char **buffer);
 extern ssize_t recv_packet_ip6(int socket, enum transport_t type, char **buffer);
 extern bool print_minimal(char *frame);
 extern bool print_frame(char *frame, size_t framesiz);
-extern bool print_dgram(char *dgram, size_t gramsiz);
-extern bool print_packet(char *packet, size_t pcksiz);
+extern bool print_ip_dgram(struct iphdr *header);
+extern bool print_ipv6_dgram(struct ip6_hdr *header);
+extern bool print_icmp_packet(struct icmphdr *header);
+extern bool print_icmp6_packet(struct icmp6_hdr *header);
+extern bool print_tcp_packet(struct tcphdr *header);
+extern bool print_udp_packet(struct udphdr *header);
+extern bool print_payload(char *payload, size_t loadsiz);
 
 #endif //__ANTEATER_H__
