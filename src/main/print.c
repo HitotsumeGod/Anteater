@@ -65,7 +65,7 @@ bool print_minimal(char *buf) {
 
 }
 
-bool print_frame(char *frame, size_t fullsiz) {
+bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *skyler_w) {
 
 	struct ethhdr *ethh;
 	union network_hdr *nhdr;
@@ -74,6 +74,17 @@ bool print_frame(char *frame, size_t fullsiz) {
 	size_t iphdrlen, tcphdrlen, psiz;
 	char *payload;
 
+	psiz = 0;
+	if (skyler_w -> print_all) {
+		skyler_w -> print_ip = true;
+		skyler_w -> print_ipv6 = true;
+		skyler_w -> print_sonos = true;
+		skyler_w -> print_icmp = true;
+		skyler_w -> print_icmpv6 = true;
+		skyler_w -> print_tcp = true;
+		skyler_w -> print_udp = true;
+		skyler_w -> print_payload = true;
+	}
 	if ((nhdr = malloc(sizeof(union network_hdr))) == NULL || (thdr = malloc(sizeof(union transport_hdr))) == NULL) {
 		errno = MALLOC_ERR;
 		return false;
@@ -89,30 +100,35 @@ bool print_frame(char *frame, size_t fullsiz) {
 	case ETH_P_IP:
 		nhdr -> iph = (struct iphdr *) (frame + sizeof(struct ethhdr));
 		iphdrlen = nhdr -> iph -> ihl * 4;
-		if (!print_ip_dgram(nhdr -> iph));
-			return false;
+		if (skyler_w -> print_ip)
+			if (!print_ip_dgram(nhdr -> iph)) 
+				return false;
 		switch (nhdr -> iph -> protocol) {
 		case IPPROTO_TCP:
 			thdr -> tcph = (struct tcphdr *) (frame + sizeof(struct ethhdr) + iphdrlen);
 			tcphdrlen = thdr -> tcph -> doff * 4;
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
-			if (!print_tcp_packet(thdr -> tcph))
-				return false;
+			if (skyler_w -> print_tcp)
+				if (!print_tcp_packet(thdr -> tcph)) {
+					return false;
+			}
 			break;
 		case IPPROTO_UDP:
 			thdr -> udph = (struct udphdr *) (frame + sizeof(struct ethhdr) + iphdrlen);
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + sizeof(struct udphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
-			if (!print_udp_packet(thdr -> udph))
-				return false;
+			if (skyler_w -> print_udp)
+				if (!print_udp_packet(thdr -> udph))
+					return false;
 			break;
 		case IPPROTO_ICMP:
 			thdr -> icmph = (struct icmphdr *) (frame + sizeof(struct ethhdr) + iphdrlen);
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct icmphdr);
-			if (!print_icmp_packet(thdr -> icmph))
-				return false;
+			if (skyler_w -> print_icmp)
+				if (!print_icmp_packet(thdr -> icmph))
+					return false;
 		default:
 			payload = NULL;
 			psiz = 0;
@@ -120,41 +136,51 @@ bool print_frame(char *frame, size_t fullsiz) {
 		break;
 	case ETH_P_IPV6:
 		nhdr -> ip6h = (struct ip6_hdr *) (frame + sizeof(struct ethhdr));
-		if (!print_ipv6_dgram(nhdr -> ip6h))
-			return false;
+		if (skyler_w -> print_ipv6)
+			if (!print_ipv6_dgram(nhdr -> ip6h))
+				return false;
 		switch (nhdr -> ip6h -> ip6_nxt) {
 		case IPPROTO_ICMPV6:
 			thdr -> icmp6h = (struct icmp6_hdr *) (frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
-			if (!print_icmp6_packet(thdr -> icmp6h))
-				return false;
+			if (skyler_w -> print_icmpv6)
+				if (!print_icmp6_packet(thdr -> icmp6h))
+					return false;
 			break;
 		case IPPROTO_TCP:
 			thdr -> tcph = (struct tcphdr *) (frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
 			tcphdrlen = thdr -> tcph -> doff * 4;
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + tcphdrlen;
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - tcphdrlen;
-			if (!print_tcp_packet(thdr -> tcph))
-				return false;
+			if (skyler_w -> print_tcp)
+				if (!print_tcp_packet(thdr -> tcph))
+					return false;
 			break;
 		case IPPROTO_UDP:
 			thdr -> udph = (struct udphdr *) (frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct udphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct udphdr);
-			if (!print_udp_packet(thdr -> udph))
-				return false;
+			if (skyler_w -> print_udp)
+				if (!print_udp_packet(thdr -> udph))
+					return false;
 			break;
 		default:
+			payload = NULL;
 			psiz = 0;
 		}
 		break;
+	case ETH_P_SONOS:
+		payload = frame + sizeof(struct ethhdr);
+		psiz = fullsiz - sizeof(struct ethhdr);
+		break;
 	}
-	if (psiz > 0)
-		if (!print_payload(payload, psiz))
-			return false;
-	else
-		printf("     EMPTY PACKET PAYLOAD\n\n");
+	if (skyler_w -> print_payload)
+		if (psiz > 0) {
+			if (!print_payload(payload, psiz))
+				return false;
+		} else
+			printf("     EMPTY PACKET PAYLOAD\n\n");
 	printf("     ##########END PACKET %d##########\n\n", loop_c);
 	free(nhdr);
 	free(thdr);

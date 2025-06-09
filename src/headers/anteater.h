@@ -39,12 +39,24 @@ enum transport_t {
 	UDP
 };
 
+struct friggin_packet_options_yo {
+	bool print_all;
+	bool print_ip;
+	bool print_ipv6;
+	bool print_sonos;
+	bool print_icmp;
+	bool print_icmpv6;
+	bool print_tcp;
+	bool print_udp;
+	bool print_payload;
+};
+
 extern ssize_t recv_frame(int socket, char **buffer);
 extern ssize_t recv_dgram(int socket, enum network_t type, char **buffer);
 extern ssize_t recv_packet_ip(int socket, enum transport_t type, char **buffer);
 extern ssize_t recv_packet_ip6(int socket, enum transport_t type, char **buffer);
 extern bool print_minimal(char *frame);
-extern bool print_frame(char *frame, size_t framesiz);
+extern bool print_frame(char *frame, size_t framesiz, struct friggin_packet_options_yo *opts);
 extern bool print_ip_dgram(struct iphdr *header);
 extern bool print_ipv6_dgram(struct ip6_hdr *header);
 extern bool print_icmp_packet(struct icmphdr *header);
