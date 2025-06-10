@@ -34,11 +34,7 @@ int main(int argc, char *argv[]) {
 	uint8_t opts;
 	struct sigaction sga;
 	
-	if (argc > 1)
-		if (SE("-m", argv[1]) != 0) {
-			usage();
-			return EXIT_FAILURE;
-		}
+	int ii = 0;
 	opts = 0x00;
 	memset(&sga, 0, sizeof(sga));
 	sga.sa_handler = &sighand;
@@ -46,7 +42,7 @@ int main(int argc, char *argv[]) {
 		perror("sigact err");
 		exit(EXIT_FAILURE);
 	}
-	for (int i = 3; i < argc; i++)
+	for (int i = 1; i < argc; i++)
 		if (SE("-all", argv[i]) == 0) {
 			opts = MASK;
 			break;
@@ -66,141 +62,18 @@ int main(int argc, char *argv[]) {
 			opts |= PMASK;
 		else if (SE("-eth", argv[i]) == 0)
 			opts |= ETHMASK;
-	if (argc == 1 || SE("ether", argv[2]) == 0) {
-		if ((sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
-			perror("sock err");
+	if ((sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+		perror("sock err");
+		return EXIT_FAILURE;
+	}
+	while (ii++ < 20) {
+		if ((fullsiz = recv_packet(sock, &buf)) == -1) {
+			perror("recv_frame err : ");
 			return EXIT_FAILURE;
 		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_frame(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}
-	} else if (SE("ipv4", argv[2]) == 0) {
-		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_IP)) == -1) {
-			perror("sock err");
+		if (!process_frame(buf, fullsiz, opts, NULL)) {
+			perror("print_frame err : ");
 			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_ip_dgram(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("ipv6", argv[2]) == 0) {
-		if ((sock = socket(AF_INET6, SOCK_RAW, IPPROTO_IPV6)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_ipv6_dgram(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("icmp", argv[2]) == 0) {
-		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_icmp_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("icmp6", argv[2]) == 0) {
-		if ((sock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_icmpv6_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("tcp", argv[2]) == 0) {
-		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			printf("0x%02X\n", opts);
-			if (!process_tcp_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("tcp6", argv[2]) == 0) {
-		if ((sock = socket(AF_INET6, SOCK_RAW, IPPROTO_TCP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_tcp_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("udp", argv[2]) == 0) {
-		if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_UDP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_udp_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
-		}		
-	} else if (SE("udp6", argv[2]) == 0) {
-		if ((sock = socket(AF_INET6, SOCK_RAW, IPPROTO_UDP)) == -1) {
-			perror("sock err");
-			return EXIT_FAILURE;
-		}
-		while (1) {
-			if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-				perror("recv_frame err : ");
-				return EXIT_FAILURE;
-			}
-			if (!process_udp_packet(buf, fullsiz, opts, NULL)) {
-				perror("print_frame err : ");
-				return EXIT_FAILURE;
-			}
 		}
 	}
 	return 0;

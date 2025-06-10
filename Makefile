@@ -21,7 +21,7 @@ prod: $(SRS) $(BUILD) $(BIN) $(CLONE)
 	rm -rf $(BIN)
 	rm -rf $(CLONE)
 debug: $(BUILD)/pilot
-	$(DBG) --leak-check=full --show-leak-kinds=all --track-origins=yes -s $^ a
+	$(DBG) --leak-check=full --show-leak-kinds=all --track-origins=yes -s $^ -all
 clean:
 	rm -rf $(BUILD)
 	rm -rf $(BIN)

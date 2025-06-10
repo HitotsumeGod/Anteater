@@ -40,12 +40,6 @@ union transport_hdr {
 
 extern ssize_t recv_packet(int socket, char **buffer);
 extern bool process_frame(char *frame, size_t framesiz, uint8_t optsmask, FILE *stream);
-extern bool process_ip_dgram(char *dgram, size_t gramsiz, uint8_t optsmask, FILE *stream);
-extern bool process_ipv6_dgram(char *dgram, size_t gramsiz, uint8_t optsmask, FILE *stream);
-extern bool process_icmp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
-extern bool process_icmpv6_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
-extern bool process_tcp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
-extern bool process_udp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
 extern bool print_minimal(char *frame, FILE *stream);
 extern bool print_frame(struct ethhdr *header, FILE *stream);
 extern bool print_ip_dgram(struct iphdr *header, FILE *stream);
