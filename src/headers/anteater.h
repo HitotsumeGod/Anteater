@@ -14,7 +14,8 @@
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
-#define ETH_P_SONOS 				0x6970
+#define PROG_VERS					"Anteater Packet Analyzer Alpha Version 1.0"
+#define ETH_P_SONOS 					0x6970
 #define MAXBUF 						65535
 #define MASK  						0xFF
 #define IPMASK 						0x01
