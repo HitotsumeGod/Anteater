@@ -13,6 +13,7 @@ int sonos = 0;
 int tcp = 0;
 int udp = 0;
 int icmp = 0;
+int icmpv6 = 0;
 int loop_c = 0;
 
 bool print_minimal(char *buf) {
@@ -34,6 +35,9 @@ bool print_minimal(char *buf) {
 		ipv4++;
 		nhdr -> iph = (struct iphdr *) (buf + sizeof(struct ethhdr));
 		switch (nhdr -> iph -> protocol) {
+		case IPPROTO_ICMP:
+			icmp++;
+			break;
 		case IPPROTO_TCP:
 			tcp++;
 			break;
@@ -46,6 +50,9 @@ bool print_minimal(char *buf) {
 		ipv6++;
 		nhdr -> ip6h = (struct ip6_hdr *) (buf + sizeof(struct ethhdr));
 		switch (nhdr -> ip6h ->ip6_nxt) {
+		case IPPROTO_ICMPV6:
+			icmpv6++;
+			break;
 		case IPPROTO_TCP:
 			tcp++;
 			break;
@@ -58,14 +65,14 @@ bool print_minimal(char *buf) {
 		sonos++;
 		break;
 	}
-	printf("IPV4: %d IPV6: %d SONOS: %d   |   ICMP: %d TCP: %d UDP: %d\r", ipv4, ipv6, sonos, icmp, tcp, udp);
+	printf("IPV4: %d IPV6: %d SONOS: %d   |   ICMP: %d ICMPV6: %d TCP: %d UDP: %d\r", ipv4, ipv6, sonos, icmp, icmpv6, tcp, udp);
 	free(nhdr);
 	free(buf);
 	return true;
 
 }
 
-bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *skyler_w) {
+bool print_frame(char *frame, size_t fullsiz, uint8_t opts) {
 
 	struct ethhdr *ethh;
 	union network_hdr *nhdr;
@@ -75,16 +82,6 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 	char *payload;
 
 	psiz = 0;
-	if (skyler_w -> print_all) {
-		skyler_w -> print_ip = true;
-		skyler_w -> print_ipv6 = true;
-		skyler_w -> print_sonos = true;
-		skyler_w -> print_icmp = true;
-		skyler_w -> print_icmpv6 = true;
-		skyler_w -> print_tcp = true;
-		skyler_w -> print_udp = true;
-		skyler_w -> print_payload = true;
-	}
 	if ((nhdr = malloc(sizeof(union network_hdr))) == NULL || (thdr = malloc(sizeof(union transport_hdr))) == NULL) {
 		errno = MALLOC_ERR;
 		return false;
@@ -100,7 +97,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 	case ETH_P_IP:
 		nhdr -> iph = (struct iphdr *) (frame + sizeof(struct ethhdr));
 		iphdrlen = nhdr -> iph -> ihl * 4;
-		if (skyler_w -> print_ip)
+		if (((opts & MASK) & IPMASK) == IPMASK)
 			if (!print_ip_dgram(nhdr -> iph)) 
 				return false;
 		switch (nhdr -> iph -> protocol) {
@@ -109,7 +106,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			tcphdrlen = thdr -> tcph -> doff * 4;
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + tcphdrlen;
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - tcphdrlen;
-			if (skyler_w -> print_tcp)
+			if (((opts & MASK) & TCPMASK) == TCPMASK)
 				if (!print_tcp_packet(thdr -> tcph)) {
 					return false;
 			}
@@ -118,7 +115,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			thdr -> udph = (struct udphdr *) (frame + sizeof(struct ethhdr) + iphdrlen);
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + sizeof(struct udphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct udphdr);
-			if (skyler_w -> print_udp)
+			if (((opts & MASK) & UDPMASK) == UDPMASK)
 				if (!print_udp_packet(thdr -> udph))
 					return false;
 			break;
@@ -126,7 +123,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			thdr -> icmph = (struct icmphdr *) (frame + sizeof(struct ethhdr) + iphdrlen);
 			payload = frame + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - iphdrlen - sizeof(struct icmphdr);
-			if (skyler_w -> print_icmp)
+			if (((opts & MASK) & ICMPMASK) == ICMPMASK)
 				if (!print_icmp_packet(thdr -> icmph))
 					return false;
 		default:
@@ -136,7 +133,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 		break;
 	case ETH_P_IPV6:
 		nhdr -> ip6h = (struct ip6_hdr *) (frame + sizeof(struct ethhdr));
-		if (skyler_w -> print_ipv6)
+		if (((opts & MASK) & IPV6MASK) == IPV6MASK)
 			if (!print_ipv6_dgram(nhdr -> ip6h))
 				return false;
 		switch (nhdr -> ip6h -> ip6_nxt) {
@@ -144,7 +141,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			thdr -> icmp6h = (struct icmp6_hdr *) (frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct icmp6_hdr);
-			if (skyler_w -> print_icmpv6)
+			if (((opts & MASK) & ICMPV6MASK) == ICMPV6MASK)
 				if (!print_icmp6_packet(thdr -> icmp6h))
 					return false;
 			break;
@@ -153,7 +150,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			tcphdrlen = thdr -> tcph -> doff * 4;
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + tcphdrlen;
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - tcphdrlen;
-			if (skyler_w -> print_tcp)
+			if (((opts & MASK) & TCPMASK) == TCPMASK)
 				if (!print_tcp_packet(thdr -> tcph))
 					return false;
 			break;
@@ -161,7 +158,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 			thdr -> udph = (struct udphdr *) (frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr));
 			payload = frame + sizeof(struct ethhdr) + sizeof(struct ip6_hdr) + sizeof(struct udphdr);
 			psiz = fullsiz - sizeof(struct ethhdr) - sizeof(struct ip6_hdr) - sizeof(struct udphdr);
-			if (skyler_w -> print_udp)
+			if (((opts & MASK) & UDPMASK) == UDPMASK)
 				if (!print_udp_packet(thdr -> udph))
 					return false;
 			break;
@@ -175,7 +172,7 @@ bool print_frame(char *frame, size_t fullsiz, struct friggin_packet_options_yo *
 		psiz = fullsiz - sizeof(struct ethhdr);
 		break;
 	}
-	if (skyler_w -> print_payload)
+	if (((opts & MASK) & PMASK) == PMASK)
 		if (psiz > 0) {
 			if (!print_payload(payload, psiz))
 				return false;

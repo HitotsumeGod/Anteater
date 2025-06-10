@@ -13,8 +13,16 @@
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
-#define ETH_P_SONOS 0x6970
-#define MAXBUF 65535
+#define ETH_P_SONOS 				0x6970
+#define MAXBUF 						65535
+#define MASK  						0xFF
+#define IPMASK 						0x01
+#define IPV6MASK 					0x02
+#define ICMPMASK 					0x04
+#define ICMPV6MASK 					0x08
+#define TCPMASK 					0x10
+#define UDPMASK 					0x20
+#define PMASK 						0x40
 
 union network_hdr {
 	struct iphdr *iph;
@@ -39,24 +47,12 @@ enum transport_t {
 	UDP
 };
 
-struct friggin_packet_options_yo {
-	bool print_all;
-	bool print_ip;
-	bool print_ipv6;
-	bool print_sonos;
-	bool print_icmp;
-	bool print_icmpv6;
-	bool print_tcp;
-	bool print_udp;
-	bool print_payload;
-};
-
 extern ssize_t recv_frame(int socket, char **buffer);
 extern ssize_t recv_dgram(int socket, enum network_t type, char **buffer);
 extern ssize_t recv_packet_ip(int socket, enum transport_t type, char **buffer);
 extern ssize_t recv_packet_ip6(int socket, enum transport_t type, char **buffer);
 extern bool print_minimal(char *frame);
-extern bool print_frame(char *frame, size_t framesiz, struct friggin_packet_options_yo *opts);
+extern bool print_frame(char *frame, size_t framesiz, uint8_t optsmask);
 extern bool print_ip_dgram(struct iphdr *header);
 extern bool print_ipv6_dgram(struct ip6_hdr *header);
 extern bool print_icmp_packet(struct icmphdr *header);
