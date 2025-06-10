@@ -1,6 +1,7 @@
 #ifndef __ANTEATER_H__
 #define __ANTEATER_H__
 
+#include <stdio.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <netinet/ether.h>
@@ -23,6 +24,7 @@
 #define TCPMASK 					0x10
 #define UDPMASK 					0x20
 #define PMASK 						0x40
+#define ETHMASK						0x80
 
 union network_hdr {
 	struct iphdr *iph;
@@ -36,29 +38,22 @@ union transport_hdr {
 	struct udphdr *udph;
 };
 
-enum network_t {
-	IPV4,
-	IPV6
-};
-
-enum transport_t {
-	ICMP,
-	TCP,
-	UDP
-};
-
-extern ssize_t recv_frame(int socket, char **buffer);
-extern ssize_t recv_dgram(int socket, enum network_t type, char **buffer);
-extern ssize_t recv_packet_ip(int socket, enum transport_t type, char **buffer);
-extern ssize_t recv_packet_ip6(int socket, enum transport_t type, char **buffer);
-extern bool print_minimal(char *frame);
-extern bool print_frame(char *frame, size_t framesiz, uint8_t optsmask);
-extern bool print_ip_dgram(struct iphdr *header);
-extern bool print_ipv6_dgram(struct ip6_hdr *header);
-extern bool print_icmp_packet(struct icmphdr *header);
-extern bool print_icmp6_packet(struct icmp6_hdr *header);
-extern bool print_tcp_packet(struct tcphdr *header);
-extern bool print_udp_packet(struct udphdr *header);
-extern bool print_payload(char *payload, size_t loadsiz);
+extern ssize_t recv_packet(int socket, char **buffer);
+extern bool process_frame(char *frame, size_t framesiz, uint8_t optsmask, FILE *stream);
+extern bool process_ip_dgram(char *dgram, size_t gramsiz, uint8_t optsmask, FILE *stream);
+extern bool process_ipv6_dgram(char *dgram, size_t gramsiz, uint8_t optsmask, FILE *stream);
+extern bool process_icmp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
+extern bool process_icmpv6_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
+extern bool process_tcp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
+extern bool process_udp_packet(char *packet, size_t pcksiz, uint8_t optsmask, FILE *stream);
+extern bool print_minimal(char *frame, FILE *stream);
+extern bool print_frame(struct ethhdr *header, FILE *stream);
+extern bool print_ip_dgram(struct iphdr *header, FILE *stream);
+extern bool print_ipv6_dgram(struct ip6_hdr *header, FILE *stream);
+extern bool print_icmp_packet(struct icmphdr *header, FILE *stream);
+extern bool print_icmpv6_packet(struct icmp6_hdr *header, FILE *stream);
+extern bool print_tcp_packet(struct tcphdr *header, FILE *stream);
+extern bool print_udp_packet(struct udphdr *header, FILE *stream);
+extern bool print_payload(char *payload, size_t loadsiz, FILE *stream);
 
 #endif //__ANTEATER_H__
