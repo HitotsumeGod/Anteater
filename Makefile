@@ -34,7 +34,6 @@ clean:
 	rm -rf $(BUILD)
 	rm -rf $(BIN)
 	rm -rf $(CLONE)
-	rm -f hexdumps
 	rm -rf vgcore.*
 	rm -rf *.tar
 	rm -rf *.gz

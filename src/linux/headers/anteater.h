@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <errno.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 #include <netinet/ether.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -14,7 +20,11 @@
 #include "pec/commonerrors.h"
 #include "pec/socketerrors.h"
 
-#define PROG_VERS					"Anteater Packet Analyzer Alpha Version 1.0"
+#ifdef _STRING_H
+#define SE(s, b) strcmp(s, b)
+#endif
+
+#define PROG_VERS					"Anteater Packet Analyzer Alpha Version 1.1E"
 #define ETH_P_SONOS 					0x6970
 #define MAXBUF 						65535
 #define MASK  						0xFF
@@ -40,7 +50,7 @@ union transport_hdr {
 };
 
 extern ssize_t recv_packet(int socket, char **buffer);
-extern bool process_frame(char *frame, size_t framesiz, uint8_t optsmask, FILE *stream);
+extern bool process_frame(char *frame, size_t framesiz, uint8_t type, FILE *stream);
 extern bool print_minimal(char *frame, FILE *stream);
 extern bool print_frame(struct ethhdr *header, FILE *stream);
 extern bool print_ip_dgram(struct iphdr *header, FILE *stream);

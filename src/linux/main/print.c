@@ -1,7 +1,3 @@
-#include <stdlib.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include "anteater.h"
 
 #define PAYLOAD_SPACING 18
@@ -14,8 +10,8 @@ int udp = 0;
 int icmp = 0;
 int icmpv6 = 0;
 
-bool print_minimal(char *buf, FILE *stream) {
-
+bool print_minimal(char *buf, FILE *stream)
+{
 	struct ethhdr *ethh;
 	union network_hdr *nhdr;
 	struct sockaddr_in src, dest;
@@ -69,21 +65,19 @@ bool print_minimal(char *buf, FILE *stream) {
 	free(nhdr);
 	free(buf);
 	return true;
-
 }
 
-bool print_frame(struct ethhdr *ethh, FILE *stream) {
-	
+bool print_frame(struct ethhdr *ethh, FILE *stream)
+{
 	fprintf(stream, "     - - - - - Start of Ethernet Header - - - - -\n");
 	fprintf(stream, "     |Ethernet Source Address is %02X-%02X-%02X-%02X-%02X-%02X\n", ethh -> h_source[0], ethh -> h_source[1], ethh -> h_source[2], ethh -> h_source[3], ethh -> h_source[4], ethh -> h_source[5]);
 	fprintf(stream, "     |Ethernet Destination Address is %02X-%02X-%02X-%02X-%02X-%02X\n", ethh -> h_dest[0], ethh -> h_dest[1], ethh -> h_dest[2], ethh -> h_dest[3], ethh -> h_dest[4], ethh -> h_dest[5]);
 	fprintf(stream, "     |Ethernet Protocol is 0x%04X\n\n", ntohs(ethh -> h_proto));
 	return true;
-
 }
 
-bool print_ip_dgram(struct iphdr *iph, FILE *stream) {
-
+bool print_ip_dgram(struct iphdr *iph, FILE *stream)
+{
 	struct sockaddr_in src, dest;
 	char addrstorage[INET_ADDRSTRLEN];
 
@@ -110,11 +104,10 @@ bool print_ip_dgram(struct iphdr *iph, FILE *stream) {
 	}
 	fprintf(stream, "     |IP Destination Address is %s\n\n", addrstorage);
 	return true;
-
 }
 
-bool print_ipv6_dgram(struct ip6_hdr *ip6h, FILE *stream) {
-
+bool print_ipv6_dgram(struct ip6_hdr *ip6h, FILE *stream)
+{
 	uint32_t flow;
 	char addr6storage[INET6_ADDRSTRLEN];
 
@@ -137,11 +130,10 @@ bool print_ipv6_dgram(struct ip6_hdr *ip6h, FILE *stream) {
 	}
 	fprintf(stream, "     |IP Destination Address is %s\n\n", addr6storage);
 	return true;
-
 }
 
-bool print_icmp_packet(struct icmphdr *icmph, FILE *stream) {
-
+bool print_icmp_packet(struct icmphdr *icmph, FILE *stream)
+{
 	fprintf(stream, "     - - - - - Start of ICMP Header - - - - -\n");
 	fprintf(stream, "     |ICMP Type is %u\n", icmph -> type);
 	fprintf(stream, "     |ICMP Code is %u\n", icmph -> code);
@@ -172,11 +164,10 @@ bool print_icmp_packet(struct icmphdr *icmph, FILE *stream) {
 		break;
 	}
 	return true;
-
 }
 
-bool print_icmpv6_packet(struct icmp6_hdr *icmp6h, FILE *stream) {
-
+bool print_icmpv6_packet(struct icmp6_hdr *icmp6h, FILE *stream)
+{
 	fprintf(stream, "     - - - - - Start of ICMP6 Header - - - - -\n");
 	fprintf(stream, "     |ICMP6 Type is %u\n", icmp6h -> icmp6_type);
 	fprintf(stream, "     |ICMP6 Code is %u\n", icmp6h -> icmp6_code);
@@ -196,11 +187,10 @@ bool print_icmpv6_packet(struct icmp6_hdr *icmp6h, FILE *stream) {
 		break;
 	}
 	return true;
-
 }
 
-bool print_tcp_packet(struct tcphdr *tcph, FILE *stream) {
-
+bool print_tcp_packet(struct tcphdr *tcph, FILE *stream)
+{
 	fprintf(stream, "     - - - - - Start of TCP Header - - - - -\n");
 	fprintf(stream, "     |TCP Source Port is %u\n", ntohs(tcph -> th_sport));
 	fprintf(stream, "     |TCP Destination Port is %u\n", ntohs(tcph -> th_dport));
@@ -213,22 +203,20 @@ bool print_tcp_packet(struct tcphdr *tcph, FILE *stream) {
 	fprintf(stream, "     |TCP Checksum is %u\n", ntohs(tcph -> check));
 	fprintf(stream, "     |TCP Urgent Pointer is %u\n\n", ntohs(tcph -> urg_ptr));
 	return true;
-
 }
 
-bool print_udp_packet(struct udphdr *udph, FILE *stream) {
-
+bool print_udp_packet(struct udphdr *udph, FILE *stream)
+{
 	fprintf(stream, "     - - - - - Start of UDP Header - - - - -\n");
 	fprintf(stream, "     |UDP Source Port is %u\n", ntohs(udph -> uh_sport));
 	fprintf(stream, "     |UDP Destination Port is %u\n", ntohs(udph -> uh_dport));
 	fprintf(stream, "     |UDP Segment Length is %u\n", ntohs(udph -> uh_ulen));
 	fprintf(stream, "     |UDP Checksum is %u\n\n", ntohs(udph -> uh_sum));
 	return true;
-
 }
 
-bool print_payload(char *payload, size_t psiz, FILE *stream) {
-
+bool print_payload(char *payload, size_t psiz, FILE *stream)
+{
 	int counter;
 
 	fprintf(stream, "     - - - - - Start of Packet Payload - - - - -\n     ");
@@ -241,5 +229,4 @@ bool print_payload(char *payload, size_t psiz, FILE *stream) {
 	}
 	fprintf(stream, "\n\n");
 	return true;
-
 }
