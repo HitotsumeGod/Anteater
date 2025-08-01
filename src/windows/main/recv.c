@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include "anteater.h"
 
 ssize_t recv_packet(int sock, char **buf) {

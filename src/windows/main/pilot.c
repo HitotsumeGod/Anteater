@@ -3,22 +3,11 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include "anteater.h"
 
 #ifdef _STRING_H
 #define SE(s, b) strcmp(s, b)
 #endif
-
-void sighand(int signal);
-
-void sighand(int sig) {
-
-	if (sig == SIGINT)
-		exit(EXIT_SUCCESS);
-
-}
 
 int main(int argc, char *argv[]) {
 
@@ -26,11 +15,10 @@ int main(int argc, char *argv[]) {
 	char *buf;
 	ssize_t fullsiz;
 	uint8_t opts;
-	struct sigaction sga;
 	FILE *ff;
 
 	fprintf(stdout, "\n     ~~~%s~~~\n\n", PROG_VERS);
-	if (getuid() != 0) {
+	if (1) {
 		fprintf(stdout, "     \x1B[1mTERMINAL ERROR:\x1B[0m\n");
 		fprintf(stdout, "     This program MUST be ran as root to work!!!\n");
 		fprintf(stdout, "     Don't believe me? Feel free to look up \"raw sockets require root\".\n");
@@ -39,12 +27,6 @@ int main(int argc, char *argv[]) {
 	}
 	ff = NULL;
 	opts = 0x00;
-	memset(&sga, 0, sizeof(sga));
-	sga.sa_handler = &sighand;
-	if (sigaction(SIGINT, &sga, NULL) == -1) {
-		perror("sigact err");
-		exit(EXIT_FAILURE);
-	}
 	for (int i = 1; i < argc; i++)
 		if (SE("-all", argv[i]) == 0) {
 			opts = MASK;
