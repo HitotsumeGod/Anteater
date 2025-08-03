@@ -137,10 +137,9 @@ bool print_icmp_packet(struct icmphdr *icmph, FILE *stream)
 	fprintf(stream, "     - - - - - Start of ICMP Header - - - - -\n");
 	fprintf(stream, "     |ICMP Type is %u\n", icmph -> type);
 	fprintf(stream, "     |ICMP Code is %u\n", icmph -> code);
-	fprintf(stream, "     |ICMP Checksum is %u\n\n", ntohs(icmph -> checksum));
+	fprintf(stream, "     |ICMP Checksum is %u\n", ntohs(icmph -> checksum));
 	switch (icmph -> type) {
 	case ICMP_DEST_UNREACH:
-		//nhdr -> iph = (struct iphdr *) (frame + sizeof(struct ethhdr) + iphdrlen + sizeof(struct icmphdr));
 		break;
 	case ICMP_TIME_EXCEEDED:
 		break;
@@ -151,8 +150,9 @@ bool print_icmp_packet(struct icmphdr *icmph, FILE *stream)
 	case ICMP_REDIRECT:
 		break;
 	case ICMP_ECHO:
-		break;
 	case ICMP_ECHOREPLY:
+		fprintf(stream, "     |ICMP ID is %u\n", icmph -> un.echo.id);
+		fprintf(stream, "     |ICMP Sequence is %u\n", icmph -> un.echo.sequence);
 		break;
 	case ICMP_TIMESTAMP:
 		break;
@@ -163,6 +163,7 @@ bool print_icmp_packet(struct icmphdr *icmph, FILE *stream)
 	case ICMP_INFO_REPLY:
 		break;
 	}
+	fprintf(stream, "\n");
 	return true;
 }
 
