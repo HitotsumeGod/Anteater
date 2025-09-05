@@ -24,12 +24,14 @@ void sighand(int sig)
 
 int main(int argc, char *argv[])
 {
-	int sock, control;
+	struct pframe *res;
+	int sock, total;
 	char *buf;
 	ssize_t fullsiz;
 	uint8_t type;
 	struct sigaction sga;
 	FILE *ff;
+	bool bare;
 
 	fprintf(stdout, "\n     ~~~%s~~~\n\n", PROG_VERS);
 	if (argc > 4)
@@ -42,6 +44,8 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	ff = stdout;
+	bare = false;
+	total = 1;
 	if (argc == 1)
 		type = ETHMASK;
 	else {
@@ -61,6 +65,11 @@ int main(int argc, char *argv[])
 			type = UDPMASK;
 		else
 			type = 0x00;
+		for (int i = 0; i < argc; i++)
+			if (SE(argv[i], "-bare") == 0) {
+				bare = true;
+				break;
+			}
 	}
 	if (argc == 2) {
 		if (SE(argv[1], "-file") == 0)
@@ -93,17 +102,58 @@ int main(int argc, char *argv[])
 		perror("sock err");
 		return EXIT_FAILURE;
 	}
-	control = 10;
-	//set control to decrement to test with valgrind memcheck
-	while (control++) {
+	while (true) {
 		if ((fullsiz = recv_packet(sock, &buf)) == -1) {
-			perror("recv_frame err : ");
+			fprintf(stderr, "recv_packet error : %d\n", errno);
 			return EXIT_FAILURE;
 		}
-		if (!process_frame(buf, fullsiz, type, ff)) {
-			perror("print_frame err : ");
+		if ((res = process_frame(buf, fullsiz, type, ff)) == NULL) {
+			fprintf(stderr, "process_frame err : %d\n", errno);
 			return EXIT_FAILURE;
 		}
+		if (type & res -> nature) {
+			fprintf(ff, "     ##########BEGIN PACKET %d##########\n\n", total);
+			if (bare) {
+				if (!print_bare(buf, fullsiz, ff)) {
+					fprintf(stderr, "print_bare error : %d\n", errno);
+					return EXIT_FAILURE;
+				}
+			} else {
+				if (!print_frame(res -> ethh, ff))
+					return EXIT_FAILURE;
+				if (res -> nature & IPMASK) {
+					if (!print_ip_dgram(res -> nhdr -> iph, ff))
+						return EXIT_FAILURE;
+					if (res -> nature & ICMPMASK)
+						if (!print_icmp_packet(res -> thdr -> icmph, ff))
+							return EXIT_FAILURE;
+				} else if (res -> nature & IPV6MASK) {
+					if (!print_ipv6_dgram(res -> nhdr -> ip6h, ff))
+						return EXIT_FAILURE;
+					if (res -> nature & ICMPV6MASK)
+						if (!print_icmpv6_packet(res -> thdr -> icmp6h, ff))
+							return EXIT_FAILURE;
+				}
+				if (res -> nature & TCPMASK) {
+					if (!print_tcp_packet(res -> thdr -> tcph, ff))
+						return EXIT_FAILURE;
+				} else if (res -> nature & UDPMASK) {
+					if (!print_udp_packet(res -> thdr -> udph, ff))
+						return EXIT_FAILURE;
+				}
+				if (res -> psiz > 0) {
+					if (!print_payload(res -> payload, res -> psiz, ff))
+						return EXIT_FAILURE;
+				} else
+					fprintf(ff, "     EMPTY PACKET PAYLOAD\n\n");
+			}
+			fprintf(ff, "     ##########END PACKET %d##########\n\n", total++);
+			fprintf(ff, "     ---------------------------------\n\n");
+		}
+		free(res -> ethh);
+		free(res -> nhdr);
+		free(res -> thdr);
+		free(res);
 	}
 	return 0;
 }

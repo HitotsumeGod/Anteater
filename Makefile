@@ -3,8 +3,8 @@ WCC=x86_64-w64-mingw32-gcc
 DBG=valgrind
 SRC=src/linux/main
 WSRC=src/windows/main
-DEPS=src/linux/headers
-WDEPS=src/windows/headers
+DEPS=src/linux/include
+WDEPS=src/windows/include
 BUILD=build
 BIN=bin
 CURRENTVERSION=anteater-alpha-v1.1
@@ -16,7 +16,7 @@ WSRS=$(WSRC)/pilot.c $(WSRC)/recv.c $(WSRC)/print.c $(WSRC)/process.c
 linux: $(BUILD)/pilot
 win: $(BUILD)/pilot.exe
 $(BUILD)/pilot: $(SRS) $(BUILD)
-	$(CC) -o $@ $(SRS) -I $(DEPS) -g
+	$(CC) -Wall -Werror -o $@ $(SRS) -I $(DEPS) -g
 $(BUILD)/pilot.exe: $(WSRS) $(BUILD)
 	$(WCC) -o $@ $(WSRS) -I $(WDEPS) -g
 prod: $(SRS) $(BUILD) $(BIN) $(CLONE)

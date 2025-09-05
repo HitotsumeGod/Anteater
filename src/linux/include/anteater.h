@@ -24,7 +24,7 @@
 #define SE(s, b) strcmp(s, b)
 #endif
 
-#define PROG_VERS					"Anteater Packet Analyzer Alpha Version 1.1E"
+#define PROG_VERS					"Anteater Packet Analyzer Alpha Version 1.2E"
 #define ETH_P_SONOS 					0x6970
 #define MAXBUF 						65535
 #define MASK  						0xFF
@@ -36,6 +36,8 @@
 #define UDPMASK 					0x20
 #define PMASK 						0x40
 #define ETHMASK						0x80
+
+#define PAYLOAD_SPACING 18
 
 union network_hdr {
 	struct iphdr *iph;
@@ -49,8 +51,18 @@ union transport_hdr {
 	struct udphdr *udph;
 };
 
+struct pframe {
+	uint8_t nature;
+	struct ethhdr *ethh;
+	union network_hdr *nhdr;
+	union transport_hdr *thdr;
+	char *payload;
+	int psiz;
+};
+
 extern ssize_t recv_packet(int socket, char **buffer);
-extern bool process_frame(char *frame, size_t framesiz, uint8_t type, FILE *stream);
+extern struct pframe *process_frame(char *frame, size_t framesiz, uint8_t type, FILE *stream);
+extern bool print_bare(char *frame, int length, FILE *stream);
 extern bool print_minimal(char *frame, FILE *stream);
 extern bool print_frame(struct ethhdr *header, FILE *stream);
 extern bool print_ip_dgram(struct iphdr *header, FILE *stream);

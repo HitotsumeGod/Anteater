@@ -1,9 +1,8 @@
 #include "anteater.h"
 
-int loop_c = 0;
+struct pframe *process_frame(char *frame, size_t fullsiz, uint8_t type, FILE *stream) {
 
-bool process_frame(char *frame, size_t fullsiz, uint8_t type, FILE *stream) {
-
+	struct pframe *procf;
 	struct ethhdr *ethh;
 	union network_hdr *nhdr;
 	union transport_hdr *thdr;
@@ -14,13 +13,17 @@ bool process_frame(char *frame, size_t fullsiz, uint8_t type, FILE *stream) {
 
 	if (!frame || !fullsiz || !type || !stream) {
 		errno = BAD_ARGS_ERR;
-		return false;
+		return NULL;
 	}
 	psiz = 0;
 	res = ETHMASK;
+	if ((procf = malloc(sizeof(struct pframe))) == NULL) {
+		errno = MALLOC_ERR;
+		return NULL;
+	}
 	if ((nhdr = malloc(sizeof(union network_hdr))) == NULL || (thdr = malloc(sizeof(union transport_hdr))) == NULL) {
 		errno = MALLOC_ERR;
-		return false;
+		return NULL;
 	}
 	ethh = (struct ethhdr *) frame;
 	nto = ntohs(ethh -> h_proto);
@@ -87,41 +90,11 @@ bool process_frame(char *frame, size_t fullsiz, uint8_t type, FILE *stream) {
 		psiz = fullsiz - sizeof(struct ethhdr);
 		break;
 	}
-	if (type & res) {
-		fprintf(stream, "     ##########BEGIN PACKET %d##########\n\n", ++loop_c);
-		fprintf(stream, "     ##########END PACKET %d##########\n\n", loop_c);
-		if (!print_frame(ethh, stream))
-			return false;
-		if (res & IPMASK) {
-			if (!print_ip_dgram(nhdr -> iph, stream))
-				return false;
-			if (res & ICMPMASK)
-				if (!print_icmp_packet(thdr -> icmph, stream))
-					return false;
-		} else if (res & IPV6MASK) {
-			if (!print_ipv6_dgram(nhdr -> ip6h, stream))
-				return false;
-			if (res & ICMPV6MASK)
-				if (!print_icmpv6_packet(thdr -> icmp6h, stream))
-					return false;
-		}
-		if (res & TCPMASK) {
-			if (!print_tcp_packet(thdr -> tcph, stream))
-				return false;
-		} else if (res & UDPMASK) {
-			if (!print_udp_packet(thdr -> udph, stream))
-				return false;
-		}
-		if (psiz > 0) {
-			if (!print_payload(payload, psiz, stream))
-				return false;
-		} else
-			fprintf(stream, "     EMPTY PACKET PAYLOAD\n\n");
-
-	}
-	free(nhdr);
-	free(thdr);
-	free(frame);
-	return true;
-
+	procf -> nature = res;
+	procf -> ethh = ethh;
+	procf -> nhdr = nhdr;
+	procf -> thdr = thdr;
+	procf -> payload = payload;
+	procf -> psiz = psiz;
+	return procf;
 }

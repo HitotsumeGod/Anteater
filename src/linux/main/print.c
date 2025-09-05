@@ -1,69 +1,16 @@
 #include "anteater.h"
 
-#define PAYLOAD_SPACING 18
-
-int ipv4 = 0;
-int ipv6 = 0;
-int sonos = 0;
-int tcp = 0;
-int udp = 0;
-int icmp = 0;
-int icmpv6 = 0;
-
-bool print_minimal(char *buf, FILE *stream)
+bool print_bare(char *buf, int len, FILE *ff)
 {
-	struct ethhdr *ethh;
-	union network_hdr *nhdr;
-	struct sockaddr_in src, dest;
-	socklen_t addrsiz;
-	size_t iphdrlen;
-
-	if (!stream)
-		stream = stdout;
-	addrsiz = sizeof(struct sockaddr_in);
-	if ((nhdr = malloc(sizeof(union network_hdr))) == NULL) {
-		errno = MALLOC_ERR;
-		return false;
-	}
-	ethh = (struct ethhdr *) buf;
-	switch (ntohs(ethh -> h_proto)) {
-	case ETH_P_IP:
-		ipv4++;
-		nhdr -> iph = (struct iphdr *) (buf + sizeof(struct ethhdr));
-		switch (nhdr -> iph -> protocol) {
-		case IPPROTO_ICMP:
-			icmp++;
-			break;
-		case IPPROTO_TCP:
-			tcp++;
-			break;
-		case IPPROTO_UDP:
-			udp++;
-			break;
+	fprintf(ff, "     ");
+	for (int i = 0, counter = 0; i < len; i++) {
+		if (counter == i - PAYLOAD_SPACING) {
+			fprintf(ff, "\n     ");
+			counter = i;
 		}
-		break;
-	case ETH_P_IPV6:
-		ipv6++;
-		nhdr -> ip6h = (struct ip6_hdr *) (buf + sizeof(struct ethhdr));
-		switch (nhdr -> ip6h ->ip6_nxt) {
-		case IPPROTO_ICMPV6:
-			icmpv6++;
-			break;
-		case IPPROTO_TCP:
-			tcp++;
-			break;
-		case IPPROTO_UDP:
-			udp++;
-			break;
-		}
-		break;
-	case ETH_P_SONOS:
-		sonos++;
-		break;
+		fprintf(ff, "%02X ", (unsigned char) *(buf + i));
 	}
-	fprintf(stream, "IPV4: %d IPV6: %d SONOS: %d   |   ICMP: %d ICMPV6: %d TCP: %d UDP: %d\r", ipv4, ipv6, sonos, icmp, icmpv6, tcp, udp);
-	free(nhdr);
-	free(buf);
+	fprintf(ff, "\n\n");
 	return true;
 }
 
@@ -93,7 +40,7 @@ bool print_ip_dgram(struct iphdr *iph, FILE *stream)
 	fprintf(stream, "     |IP Type of Service is %u\n", iph -> tos);
 	fprintf(stream, "     |IP Total Length is %u\n", ntohs(iph -> tot_len));
 	fprintf(stream, "     |IP ID is %u\n", ntohs(iph -> id));
-	fprintf(stream, "     |IP Fragment Offset is %u\n", ntohs(iph -> frag_off));
+	fprintf(stream, "     |IP Fragment Offset is %u\n", ntohs(iph -> frag_off & 0x0FFF));
 	fprintf(stream, "     |IP Time to Live is %u\n", iph -> ttl);
 	fprintf(stream, "     |IP Protocol is %u\n", iph -> protocol);
 	fprintf(stream, "     |IP Checksum is %u\n", ntohs(iph -> check));
